@@ -30,3 +30,11 @@ create table comment (
 )
   engine = InnoDB
   default charset = utf8;
+
+create table session (
+  session_id varchar(64) not null primary key,
+  TTL        varchar(64),
+  username   varchar(64)
+)
+  engine = InnoDB
+  default charset = utf8;
