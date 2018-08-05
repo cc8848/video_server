@@ -33,14 +33,14 @@ var (
 		},
 	}
 	DBError = ErrorResponse{
-		HttpSC: 500,
+		HttpSC: http.StatusInternalServerError,
 		Error: Err{
 			Error:     "DB ops  failed",
 			ErrorCode: "003",
 		},
 	}
 	InternalFaults = ErrorResponse{
-		HttpSC: 500,
+		HttpSC: http.StatusInternalServerError,
 		Error: Err{
 			Error:     "Internal Service error",
 			ErrorCode: "004",
