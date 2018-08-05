@@ -38,3 +38,9 @@ create table session (
 )
   engine = InnoDB
   default charset = utf8;
+
+create table video_del_rec (
+  video_id varchar(64) not null primary key
+)
+  engine = InnoDB
+  default charset = utf8;
