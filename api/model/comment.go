@@ -13,6 +13,16 @@ type Comment struct {
 	Content    string
 }
 
+type NewComment struct {
+	AuthorId int `json:"author_id"`
+	Content string `json:"content"`
+}
+
+type Comments struct {
+	Comments []*Comment `json:"comments"`
+}
+
+
 func AddNewComment(vid string, aid int, comment string) error {
 	cid, err := utils.NewUUID()
 	if err != nil {

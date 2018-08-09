@@ -7,9 +7,14 @@ import (
 )
 
 // requests
-type UserCredential struct {
+type User struct {
+	Id       int
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type UserInfo struct {
+	Id int `json:"id"`
 }
 
 func AddUserCredential(username string, password string) error {
@@ -55,4 +60,29 @@ func DeleteUser(username string, password string) error {
 		return err
 	}
 	return nil
+}
+
+func GetUser(loginName string) (*User, error) {
+	stmt, err := conn.DBConn.Prepare("SELECT id, password FROM users WHERE username = ?")
+	if err != nil {
+		log.Printf("%s", err)
+		return nil, err
+	}
+	defer stmt.Close()
+
+	var id int
+	var password string
+
+	err = stmt.QueryRow(loginName).Scan(&id, &password)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	res := &User{Id: id, Username: loginName, Password: password}
+
+	return res, nil
 }

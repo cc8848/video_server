@@ -16,6 +16,15 @@ type VideoInfo struct {
 	DisplayCTime string
 }
 
+type NewVideo struct {
+	AuthorId int    `json:"author_id"`
+	Name     string `json:"name"`
+}
+
+type VideosInfo struct {
+	Videos []*VideoInfo `json:"videos"`
+}
+
 func AddNewVideo(aid int, name string) (*VideoInfo, error) {
 	// create uuid
 	vid, err := utils.NewUUID()
@@ -75,4 +84,38 @@ func DeleteVideo(vid string) error {
 		return err
 	}
 	return nil
+}
+
+func ListVideoInfo(uname string, from, to int) ([]*VideoInfo, error) {
+	stmtOut, err := conn.DBConn.Prepare(`SELECT video_info.id, video_info.author_id, video_info.name, video_info.display_ctime FROM video_info 
+		INNER JOIN user ON video_info.author_id = user.id
+		WHERE user.username = ? AND video_info.create_time > FROM_UNIXTIME(?) AND video_info.create_time <= FROM_UNIXTIME(?) 
+		ORDER BY video_info.create_time DESC`)
+
+	var res []*VideoInfo
+
+	if err != nil {
+		return res, err
+	}
+
+	rows, err := stmtOut.Query(uname, from, to)
+	if err != nil {
+		log.Printf("%s", err)
+		return res, err
+	}
+
+	for rows.Next() {
+		var id, name, ctime string
+		var aid int
+		if err := rows.Scan(&id, &aid, &name, &ctime); err != nil {
+			return res, err
+		}
+
+		vi := &VideoInfo{Id: id, AuthorId: aid, Name: name, DisplayCTime: ctime}
+		res = append(res, vi)
+	}
+
+	defer stmtOut.Close()
+
+	return res, nil
 }
