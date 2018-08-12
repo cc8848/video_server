@@ -11,8 +11,8 @@ var AK string
 var SK string
 
 func init() {
-	AK = ""
-	SK = ""
+	AK = "LTAIomnmVKq5ij6m"
+	SK = "aM07Y6XwyfWlxGfrtUWmDKE11mNOvF"
 	EP = config.GetOssAddr()
 }
 

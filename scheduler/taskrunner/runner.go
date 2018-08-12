@@ -1,27 +1,24 @@
 package taskrunner
 
-import (
-)
-
 type Runner struct {
 	Controller controlChan
-	Error controlChan
-	Data dataChan
-	dataSize int
-	longLived bool
-	Dispatcher fn 
-	Executor fn
+	Error      controlChan
+	Data       dataChan
+	dataSize   int
+	longLived  bool
+	Dispatcher fn
+	Executor   fn
 }
 
 func NewRunner(size int, longlived bool, d fn, e fn) *Runner {
-	return &Runner {
+	return &Runner{
 		Controller: make(chan string, 1),
-		Error: make(chan string, 1),
-		Data: make(chan interface{}, size),
-		longLived: longlived,
-		dataSize: size,
+		Error:      make(chan string, 1),
+		Data:       make(chan interface{}, size),
+		longLived:  longlived,
+		dataSize:   size,
 		Dispatcher: d,
-		Executor: e,
+		Executor:   e,
 	}
 }
 
@@ -36,25 +33,25 @@ func (r *Runner) startDispatch() {
 
 	for {
 		select {
-		case c :=<- r.Controller:
-			if c == READY_TO_DISPATCH {
+		case c := <-r.Controller:
+			if c == ReadyToDispatch {
 				err := r.Dispatcher(r.Data)
 				if err != nil {
 					r.Error <- CLOSE
 				} else {
-					r.Controller <- READY_TO_EXECUTE
+					r.Controller <- ReadyToExecute
 				}
 			}
 
-			if c == READY_TO_EXECUTE {
+			if c == ReadyToExecute {
 				err := r.Executor(r.Data)
 				if err != nil {
 					r.Error <- CLOSE
 				} else {
-					r.Controller <- READY_TO_DISPATCH
+					r.Controller <- ReadyToDispatch
 				}
 			}
-		case e :=<- r.Error:
+		case e := <-r.Error:
 			if e == CLOSE {
 				return
 			}
@@ -65,6 +62,6 @@ func (r *Runner) startDispatch() {
 }
 
 func (r *Runner) StartAll() {
-	r.Controller <- READY_TO_DISPATCH
+	r.Controller <- ReadyToDispatch
 	r.startDispatch()
 }
