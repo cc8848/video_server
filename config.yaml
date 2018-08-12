@@ -1,6 +1,0 @@
-database:
-  mysql:
-    dbusername: root
-    dbpassword: jiayou
-    dbhostsip: 127.0.0.1:3306
-    dbname: video_server

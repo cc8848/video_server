@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
-	"github.com/Zereker/video_server/streamserver/config"
+	"Zereker/config"
 )
 
 var EP string // EndPoint
