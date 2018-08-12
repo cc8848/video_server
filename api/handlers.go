@@ -207,3 +207,19 @@ func ShowComments(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		response.SendNormalResponse(w, string(resp), 200)
 	}
 }
+
+func DeleteVideo(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	if !ValidateUser(w, r) {
+		return
+	}
+	vid := p.ByName("vid-id")
+	err := model.DeleteVideo(vid)
+	if err != nil {
+		log.Printf("Error in DeletVideo: %s", err)
+		response.SendErrorResponse(w, response.DBError)
+		return
+	}
+
+	go utils.SendDeleteVideoRequest(vid)
+	response.SendNormalResponse(w, "", 204)
+}
