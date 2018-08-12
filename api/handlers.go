@@ -1,91 +1,86 @@
 package main
 
 import (
+	//"io"
+	"encoding/json"
+	"github.com/Zereker/video_server/api/dbops"
+	"github.com/Zereker/video_server/api/defs"
+	"github.com/Zereker/video_server/api/session"
+	"github.com/Zereker/video_server/api/utils"
+	"github.com/julienschmidt/httprouter"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"io/ioutil"
-	"encoding/json"
-	"github.com/julienschmidt/httprouter"
-	"github.com/Zereker/video_server/api/model"
-	"github.com/Zereker/video_server/api/session"
-	"github.com/Zereker/video_server/api/response"
-	"github.com/Zereker/video_server/api/utils"
 )
 
-func CreateUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	res, _ := ioutil.ReadAll(r.Body)
-	userCredential := &model.User{}
-	err := json.Unmarshal(res, userCredential)
-	if err != nil {
-		log.Printf("CreateUser, err: %s", err)
-		response.SendErrorResponse(w, response.RequestBodyParseFailedError)
+	ubody := &defs.UserCredential{}
+
+	if err := json.Unmarshal(res, ubody); err != nil {
+		sendErrorResponse(w, defs.ErrorRequestBodyParseFailed)
 		return
-	}
-	err = model.AddUserCredential(userCredential.Username, userCredential.Password)
-	if err != nil {
-		log.Printf("CreateUser, err: %s", err)
-		response.SendErrorResponse(w, response.DBError)
-		return
-	}
-	id := session.GenerateNewSessionId(userCredential.Username)
-	su := response.SignedUp{
-		Success:   true,
-		SessionId: id,
-	}
-	if resp, err := json.Marshal(su); err != nil {
-		log.Printf("CreateUser, err: %s", err)
-		response.SendErrorResponse(w, response.InternalFaults)
-		return
-	} else {
-		response.SendNormalResponse(w, string(resp), http.StatusCreated)
 	}
 
+	if err := dbops.AddUserCredential(ubody.Username, ubody.Pwd); err != nil {
+		sendErrorResponse(w, defs.ErrorDBError)
+		return
+	}
+
+	id := session.GenerateNewSessionId(ubody.Username)
+	su := &defs.SignedUp{Success: true, SessionId: id}
+
+	if resp, err := json.Marshal(su); err != nil {
+		sendErrorResponse(w, defs.ErrorInternalFaults)
+		return
+	} else {
+		sendNormalResponse(w, string(resp), 201)
+	}
 }
+
+// func Login(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+// 	uname := p.ByName("user_name")
+// 	io.WriteString(w, uname)
+// }
 
 func Login(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	res, _ := ioutil.ReadAll(r.Body)
-	userCredential := &model.User{}
-	if err := json.Unmarshal(res, userCredential); err != nil {
-		log.Printf("Login, err: %s", err)
-		response.SendErrorResponse(w, response.RequestBodyParseFailedError)
+	log.Printf("%s", res)
+	ubody := &defs.UserCredential{}
+	if err := json.Unmarshal(res, ubody); err != nil {
+		log.Printf("%s", err)
+		//io.WriteString(w, "wrong")
+		sendErrorResponse(w, defs.ErrorRequestBodyParseFailed)
 		return
 	}
 
-	// validate the request body
-	username := p.ByName("username")
-	if username != userCredential.Username {
-		log.Printf("Login url name: %s", username)
-		log.Printf("Login body name: %s", userCredential.Username)
-		response.SendErrorResponse(w, response.NoAuthUserError)
+	// Validate the request body
+	uname := p.ByName("username")
+	log.Printf("Login url name: %s", uname)
+	log.Printf("Login body name: %s", ubody.Username)
+	if uname != ubody.Username {
+		sendErrorResponse(w, defs.ErrorNotAuthUser)
 		return
 	}
 
-	password, err := model.GetUserCredential(userCredential.Username)
-	if err != nil {
-		log.Printf("Login, err: %s", err)
-		response.SendErrorResponse(w, response.DBError)
+	log.Printf("%s", ubody.Username)
+	pwd, err := dbops.GetUserCredential(ubody.Username)
+	log.Printf("Login pwd: %s", pwd)
+	log.Printf("Login body pwd: %s", ubody.Pwd)
+	if err != nil || len(pwd) == 0 || pwd != ubody.Pwd {
+		sendErrorResponse(w, defs.ErrorNotAuthUser)
 		return
 	}
 
-	if len(userCredential.Password) > 0 && password != userCredential.Password {
-		log.Printf("Login, err: %s", err)
-		response.SendErrorResponse(w, response.NoAuthUserError)
-		return
-	}
-
-	id := session.GenerateNewSessionId(userCredential.Username)
-	su := response.SignedUp{
-		Success:   true,
-		SessionId: id,
-	}
-	if resp, err := json.Marshal(su); err != nil {
-		log.Printf("Login, err: %s", err)
-		response.SendErrorResponse(w, response.InternalFaults)
-		return
+	id := session.GenerateNewSessionId(ubody.Username)
+	si := &defs.SignedIn{Success: true, SessionId: id}
+	if resp, err := json.Marshal(si); err != nil {
+		sendErrorResponse(w, defs.ErrorInternalFaults)
 	} else {
-		response.SendNormalResponse(w, string(resp), http.StatusOK)
+		sendNormalResponse(w, string(resp), 200)
 	}
 
+	//io.WriteString(w, "signed in")
 }
 
 func GetUserInfo(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -95,18 +90,18 @@ func GetUserInfo(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	}
 
 	uname := p.ByName("username")
-	u, err := model.GetUser(uname)
+	u, err := dbops.GetUser(uname)
 	if err != nil {
 		log.Printf("Error in GetUserInfo: %s", err)
-		response.SendErrorResponse(w, response.DBError)
+		sendErrorResponse(w, defs.ErrorDBError)
 		return
 	}
 
-	ui := &model.UserInfo{Id: u.Id}
+	ui := &defs.UserInfo{Id: u.Id}
 	if resp, err := json.Marshal(ui); err != nil {
-		response.SendErrorResponse(w, response.InternalFaults)
+		sendErrorResponse(w, defs.ErrorInternalFaults)
 	} else {
-		response.SendNormalResponse(w, string(resp), 200)
+		sendNormalResponse(w, string(resp), 200)
 	}
 
 }
@@ -118,25 +113,25 @@ func AddNewVideo(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	}
 
 	res, _ := ioutil.ReadAll(r.Body)
-	nvbody := &model.NewVideo{}
+	nvbody := &defs.NewVideo{}
 	if err := json.Unmarshal(res, nvbody); err != nil {
 		log.Printf("%s", err)
-		response.SendErrorResponse(w, response.RequestBodyParseFailedError)
+		sendErrorResponse(w, defs.ErrorRequestBodyParseFailed)
 		return
 	}
 
-	vi, err := model.AddNewVideo(nvbody.AuthorId, nvbody.Name)
+	vi, err := dbops.AddNewVideo(nvbody.AuthorId, nvbody.Name)
 	log.Printf("Author id : %d, name: %s \n", nvbody.AuthorId, nvbody.Name)
 	if err != nil {
 		log.Printf("Error in AddNewVideo: %s", err)
-		response.SendErrorResponse(w, response.DBError)
+		sendErrorResponse(w, defs.ErrorDBError)
 		return
 	}
 
 	if resp, err := json.Marshal(vi); err != nil {
-		response.SendErrorResponse(w, response.InternalFaults)
+		sendErrorResponse(w, defs.ErrorInternalFaults)
 	} else {
-		response.SendNormalResponse(w, string(resp), 201)
+		sendNormalResponse(w, string(resp), 201)
 	}
 
 }
@@ -147,20 +142,37 @@ func ListAllVideos(w http.ResponseWriter, r *http.Request, p httprouter.Params) 
 	}
 
 	uname := p.ByName("username")
-	vs, err := model.ListVideoInfo(uname, 0, utils.GetCurrentTimestampSec())
+	vs, err := dbops.ListVideoInfo(uname, 0, utils.GetCurrentTimestampSec())
 	if err != nil {
 		log.Printf("Error in ListAllvideos: %s", err)
-		response.SendErrorResponse(w, response.DBError)
+		sendErrorResponse(w, defs.ErrorDBError)
 		return
 	}
 
-	vsi := &model.VideosInfo{Videos: vs}
+	vsi := &defs.VideosInfo{Videos: vs}
 	if resp, err := json.Marshal(vsi); err != nil {
-		response.SendErrorResponse(w, response.InternalFaults)
+		sendErrorResponse(w, defs.ErrorInternalFaults)
 	} else {
-		response.SendNormalResponse(w, string(resp), 200)
+		sendNormalResponse(w, string(resp), 200)
 	}
 
+}
+
+func DeleteVideo(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	if !ValidateUser(w, r) {
+		return
+	}
+
+	vid := p.ByName("vid-id")
+	err := dbops.DeleteVideoInfo(vid)
+	if err != nil {
+		log.Printf("Error in DeletVideo: %s", err)
+		sendErrorResponse(w, defs.ErrorDBError)
+		return
+	}
+
+	go utils.SendDeleteVideoRequest(vid)
+	sendNormalResponse(w, "", 204)
 }
 
 func PostComment(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -170,19 +182,19 @@ func PostComment(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 
 	reqBody, _ := ioutil.ReadAll(r.Body)
 
-	cbody := &model.NewComment{}
+	cbody := &defs.NewComment{}
 	if err := json.Unmarshal(reqBody, cbody); err != nil {
 		log.Printf("%s", err)
-		response.SendErrorResponse(w, response.RequestBodyParseFailedError)
+		sendErrorResponse(w, defs.ErrorRequestBodyParseFailed)
 		return
 	}
 
 	vid := p.ByName("vid-id")
-	if err := model.AddNewComment(vid, cbody.AuthorId, cbody.Content); err != nil {
+	if err := dbops.AddNewComments(vid, cbody.AuthorId, cbody.Content); err != nil {
 		log.Printf("Error in PostComment: %s", err)
-		response.SendErrorResponse(w, response.DBError)
+		sendErrorResponse(w, defs.ErrorDBError)
 	} else {
-		response.SendNormalResponse(w, "ok", 201)
+		sendNormalResponse(w, "ok", 201)
 	}
 
 }
@@ -193,33 +205,17 @@ func ShowComments(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	}
 
 	vid := p.ByName("vid-id")
-	cm, err := model.ListComments(vid, 0, utils.GetCurrentTimestampSec())
+	cm, err := dbops.ListComments(vid, 0, utils.GetCurrentTimestampSec())
 	if err != nil {
 		log.Printf("Error in ShowComments: %s", err)
-		response.SendErrorResponse(w, response.DBError)
+		sendErrorResponse(w, defs.ErrorDBError)
 		return
 	}
 
-	cms := &model.Comments{Comments: cm}
+	cms := &defs.Comments{Comments: cm}
 	if resp, err := json.Marshal(cms); err != nil {
-		response.SendErrorResponse(w, response.InternalFaults)
+		sendErrorResponse(w, defs.ErrorInternalFaults)
 	} else {
-		response.SendNormalResponse(w, string(resp), 200)
+		sendNormalResponse(w, string(resp), 200)
 	}
-}
-
-func DeleteVideo(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	if !ValidateUser(w, r) {
-		return
-	}
-	vid := p.ByName("vid-id")
-	err := model.DeleteVideo(vid)
-	if err != nil {
-		log.Printf("Error in DeletVideo: %s", err)
-		response.SendErrorResponse(w, response.DBError)
-		return
-	}
-
-	go utils.SendDeleteVideoRequest(vid)
-	response.SendNormalResponse(w, "", 204)
 }

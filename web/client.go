@@ -1,12 +1,14 @@
-package main
+package main 
 
 import (
-	"net/http"
 	"log"
-	"io/ioutil"
-	"encoding/json"
-	"io"
+	"net/http"
 	"bytes"
+	"io"
+	"io/ioutil"
+	"net/url"
+	"encoding/json"
+	"Zereker/config"
 )
 
 var httpClient *http.Client
@@ -15,35 +17,39 @@ func init() {
 	httpClient = &http.Client{}
 }
 
-func request(apiBody *ApiBody, w http.ResponseWriter, r *http.Request) {
+func request(b *ApiBody, w http.ResponseWriter, r *http.Request) {
 	var resp *http.Response
 	var err error
 
-	switch apiBody.Method {
+	u, _ := url.Parse(b.Url)
+	u.Host = config.GetLbAddr() + ":" + u.Port()
+	newUrl := u.String()
+
+	switch b.Method {
 	case http.MethodGet:
-		req, _ := http.NewRequest("GET", apiBody.Url, nil)
+		req, _ := http.NewRequest("GET", newUrl, nil)
 		req.Header = r.Header
 		resp, err = httpClient.Do(req)
 		if err != nil {
-			log.Printf("error : %v", err)
+			log.Println(err)
 			return
 		}
 		normalResponse(w, resp)
 	case http.MethodPost:
-		req, _ := http.NewRequest("POST", apiBody.Url, bytes.NewBuffer([]byte(apiBody.ReqBody)))
+		req, _ := http.NewRequest("POST", newUrl, bytes.NewBuffer([]byte(b.ReqBody)))
 		req.Header = r.Header
 		resp, err = httpClient.Do(req)
 		if err != nil {
-			log.Printf("error : %v", err)
+			log.Println(err)
 			return
 		}
 		normalResponse(w, resp)
 	case http.MethodDelete:
-		req, _ := http.NewRequest("DELETE", apiBody.Url, nil)
+		req, _ := http.NewRequest("DELETE", newUrl, nil)
 		req.Header = r.Header
 		resp, err = httpClient.Do(req)
 		if err != nil {
-			log.Printf("error : %v", err)
+			log.Println(err)
 			return
 		}
 		normalResponse(w, resp)
@@ -57,11 +63,12 @@ func request(apiBody *ApiBody, w http.ResponseWriter, r *http.Request) {
 func normalResponse(w http.ResponseWriter, r *http.Response) {
 	res, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		re, _ := json.Marshal(InternalFaultsError)
-		w.WriteHeader(http.StatusInternalServerError)
-		io.WriteString(w, string(string(re)))
+		re, _ := json.Marshal(ErrorInternalFaults)
+		w.WriteHeader(500)
+		io.WriteString(w, string(re))
 		return
 	}
+
 	w.WriteHeader(r.StatusCode)
 	io.WriteString(w, string(res))
 }

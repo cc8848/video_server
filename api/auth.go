@@ -1,30 +1,37 @@
 package main
 
 import (
-	"net/http"
+	"github.com/Zereker/video_server/api/defs"
 	"github.com/Zereker/video_server/api/session"
+	"net/http"
 )
 
-var HeaderFiledSession = "X-Session-Id"
-var HeaderFiledUsername = "X-User-Name"
+var HEADER_FIELD_SESSION = "X-Session-Id"
+var HEADER_FIELD_UNAME = "X-User-Name"
 
+// Check if the current user has the permission
+// Use session id to do the check
 func validateUserSession(r *http.Request) bool {
-	sessionId := r.Header.Get(HeaderFiledSession)
-	if len(sessionId) == 0 {
+	sid := r.Header.Get(HEADER_FIELD_SESSION)
+	if len(sid) == 0 {
 		return false
 	}
-	username, ok := session.IsSessionExpired(sessionId)
+
+	uname, ok := session.IsSessionExpired(sid)
 	if ok {
 		return false
 	}
-	r.Header.Add(HeaderFiledSession, username)
+
+	r.Header.Add(HEADER_FIELD_UNAME, uname)
 	return true
 }
 
 func ValidateUser(w http.ResponseWriter, r *http.Request) bool {
-	username := r.Header.Get(HeaderFiledUsername)
-	if len(username) == 0 {
+	uname := r.Header.Get(HEADER_FIELD_UNAME)
+	if len(uname) == 0 {
+		sendErrorResponse(w, defs.ErrorNotAuthUser)
 		return false
 	}
+
 	return true
 }

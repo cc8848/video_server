@@ -1,28 +1,18 @@
 package main
 
 import (
-	"net/http"
+	"io"
 	"os"
-	"time"
+	"net/http"
 	"io/ioutil"
 	"log"
-	"io"
-	"html/template"
 	"github.com/julienschmidt/httprouter"
 )
 
 func streamHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	vid := p.ByName("vid-id")
-	videoPath := VideoDir + vid
-	video, err := os.Open(videoPath)
-	if err != nil {
-		log.Printf("Error when try to open file: %v\n", err)
-		sendErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
-		return
-	}
-	defer video.Close()
-	w.Header().Set("Content-Type", "video/mp4")
-	http.ServeContent(w, r, "", time.Now(), video)
+	log.Println("Entered the streamHandler")
+	targetUrl := "http://zereker.oss-cn-beijing.aliyuncs.com/videos/" + p.ByName("vid-id")
+	http.Redirect(w, r, targetUrl, 301)
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -31,34 +21,39 @@ func uploadHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) 
 		sendErrorResponse(w, http.StatusBadRequest, "File is too big")
 		return
 	}
-	file, _, err := r.FormFile("file") // <form name="file">
+
+	file, _, err := r.FormFile("file")
 	if err != nil {
-		sendErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+		log.Printf("Error when try to get file: %v", err)
+		sendErrorResponse(w, http.StatusInternalServerError, "Internal Error")
 		return
 	}
-	defer file.Close()
 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Printf("Read file error: %v\n", err)
-		sendErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+		log.Printf("Read file error: %v", err)
+		sendErrorResponse(w, http.StatusInternalServerError, "Internal Error")
+	}
+
+	fn := p.ByName("vid-id")
+	err = ioutil.WriteFile(VideoDir+fn, data, 0666)
+	if err != nil {
+		log.Printf("Write file error: %v", err)
+		sendErrorResponse(w, http.StatusInternalServerError, "Internal Error")
 		return
 	}
 
-	vid := p.ByName("vid-id")
-	videoPath := VideoDir + vid
-	err = ioutil.WriteFile(videoPath, data, 0666)
-	if err != nil {
-		log.Printf("Write file error: %v", err)
-		sendErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+	ossfn := "videos/" + fn
+	path := "./videos/" + fn
+	bn := "zereker"
+	ret := UploadToOss(ossfn, path, bn)
+	if !ret {
+		sendErrorResponse(w, http.StatusInternalServerError, "Internal Error")
 		return
 	}
+
+	os.Remove(path)
 
 	w.WriteHeader(http.StatusCreated)
 	io.WriteString(w, "Uploaded successfully")
-}
-
-func testPageHandler(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
-	t, _ := template.ParseFiles("./videos/upload.html")
-	t.Execute(w, nil)
 }

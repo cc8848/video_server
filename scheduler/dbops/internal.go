@@ -1,55 +1,56 @@
 package dbops
 
-import "log"
+import (
+	"log"
+	_ "github.com/go-sql-driver/mysql"
+)
 
 func ReadVideoDeletionRecord(count int) ([]string, error) {
-	stmt, err := DBConn.Prepare("select video_id from video_del_rec limit ?")
-	if err != nil {
-		log.Printf("ReadVideoDeletionRecord error: %v", err)
-		return nil, err
-	}
-	defer stmt.Close()
+	stmtOut, err := dbConn.Prepare("SELECT video_id FROM video_del_rec LIMIT ?")
+
 	var ids []string
-	rows, err := stmt.Query(count)
+
 	if err != nil {
-		log.Printf("ReadVideoDeletionRecord error: %v", err)
-		return nil, err
+		return ids, err
 	}
+
+	rows, err := stmtOut.Query(count)
+	if err != nil {
+		log.Printf("Query VideoDeletionRecord error: %v", err)
+		return ids, err
+	}
+
 	for rows.Next() {
 		var id string
-		if err = rows.Scan(&id); err != nil {
-			return ids, nil
+		if err := rows.Scan(&id); err != nil {
+			return ids, err
 		}
+
 		ids = append(ids, id)
 	}
+
+	defer stmtOut.Close()
 	return ids, nil
 }
 
 func DelVideoDeletionRecord(vid string) error {
-	stmt, err := DBConn.Prepare("delete from video_del_rec where video_id = ?")
+	stmtDel, err := dbConn.Prepare("DELETE FROM video_del_rec WHERE video_id=?")
 	if err != nil {
-		log.Printf("DelVideoDeletionRecord error: %v", err)
 		return err
 	}
-	defer stmt.Close()
-	_, err = stmt.Exec(vid)
+
+	_, err = stmtDel.Exec(vid)
 	if err != nil {
-		log.Printf("DelVideoDeletionRecord error: %v", err)
+		log.Printf("Deleting VideoDeletionRecord error: %v", err)
 		return err
 	}
+
+	defer stmtDel.Close()
 	return nil
 }
 
-func AddVideoDeletionRecord(vid string) error {
-	stmt, err := DBConn.Prepare("insert into video_del_rec(video_id) values (?)")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(vid)
-	if err != nil {
-		log.Printf("AddVideoDeletionRecord error : %v", err)
-		return err
-	}
-	return nil
-}
+
+
+
+
+
