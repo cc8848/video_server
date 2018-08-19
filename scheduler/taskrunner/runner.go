@@ -10,12 +10,12 @@ type Runner struct {
 	Executor   fn
 }
 
-func NewRunner(size int, longlived bool, d fn, e fn) *Runner {
+func NewRunner(size int, longLived bool, d fn, e fn) *Runner {
 	return &Runner{
 		Controller: make(chan string, 1),
 		Error:      make(chan string, 1),
 		Data:       make(chan interface{}, size),
-		longLived:  longlived,
+		longLived:  longLived,
 		dataSize:   size,
 		Dispatcher: d,
 		Executor:   e,

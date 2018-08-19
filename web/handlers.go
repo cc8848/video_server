@@ -1,4 +1,4 @@
-package main 
+package main
 
 import (
 	"html/template"
@@ -25,7 +25,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	cname, err1 := r.Cookie("username")
 	sid, err2 := r.Cookie("session")
 
-    if err1 != nil || err2 != nil {
+	if err1 != nil || err2 != nil {
 		p := &HomePage{Name: "Zereker"}
 		t, e := template.ParseFiles("./templates/home.html")
 		if e != nil {
@@ -34,7 +34,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		}
 
 		t.Execute(w, p)
-	    return
+		return
 	}
 
 	if len(cname.Value) != 0 && len(sid.Value) != 0 {
@@ -78,15 +78,15 @@ func apiHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	res, _ := ioutil.ReadAll(r.Body)
-	apibody := &ApiBody{}
-	if err := json.Unmarshal(res, apibody); err != nil {
+	defer r.Body.Close()
+	apiBody := &ApiBody{}
+	if err := json.Unmarshal(res, apiBody); err != nil {
 		re, _ := json.Marshal(ErrorRequestBodyParseFailed)
 		io.WriteString(w, string(re))
 		return
 	}
 
-	request(apibody, w, r)
-	defer r.Body.Close()
+	request(apiBody, w, r)
 }
 
 func proxyVideoHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -100,4 +100,3 @@ func proxyUploadHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 	proxy := httputil.NewSingleHostReverseProxy(u)
 	proxy.ServeHTTP(w, r)
 }
-

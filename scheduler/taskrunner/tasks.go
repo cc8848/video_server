@@ -15,7 +15,7 @@ func deleteVideo(vid string) error {
 
 	if !ok {
 		log.Printf("Deleting video error, oss operation failed")
-		return errors.New("Deleting video error")
+		return errors.New("deleting video error")
 	}
 
 	return nil
@@ -29,7 +29,7 @@ func VideoClearDispatcher(dc dataChan) error {
 	}
 
 	if len(res) == 0 {
-		return errors.New("All tasks finished")
+		return errors.New("all tasks finished")
 	}
 
 	for _, id := range res {
